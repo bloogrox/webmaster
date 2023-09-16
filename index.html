@@ -9,6 +9,7 @@
     <style>
         * {font-family: sans-serif;}
     </style>
+    <script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
 </head>
 <body>
     <div id="app" class="max-w-screen-lg m-auto">
@@ -214,6 +215,29 @@ project }}</a>
         app.use(pinia);
         app.use(router);
         app.mount("#app");
+
     </script>
+    <script>
+        window.YaAuthSuggest.init(
+            {
+                client_id: 'ccba5862126b4b2aba1261e5dfd5165d',
+                response_type: 'token',
+                redirect_uri: 'https://bloogrox.github.io/webmaster/auth.html'
+            },
+          'https://bloogrox.github.io',
+          {
+            view: "button",
+            parentId: "buttonContainerId",
+            buttonSize: 'm',
+            buttonView: 'icon',
+            buttonTheme: 'light',
+            buttonBorderRadius: "0",
+            buttonIcon: 'ya',
+          }
+        )
+        .then(({handler}) => handler())
+        .then(data => console.log('Сообщение с токеном', data))
+        .catch(error => console.log('Обработка ошибки', error))
+      </script>
 </body>
 </html>
