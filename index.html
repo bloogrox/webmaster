@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webmaster</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.5.1/dist/full.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com/3.3.1"></script>
+    <style>
+        * {font-family: sans-serif;}
+    </style>
+</head>
+<body>
+    <div id="app" class="max-w-screen-lg m-auto">
+        <div class="navbar bg-base-100">
+            <div class="navbar-start">
+                <router-link to="/" class="btn btn-ghost normal-case tex
+t-xl">Home</router-link>
+            </div>
+            <!-- <div class="navbar-center hidden lg:flex">
+            <ul class="menu menu-horizontal px-1">
+                <li><router-link to="/journal" :class="{'active': $route
+.path == '/journal'}">Дневник</router-link></li>
+                <li><router-link to="/beliefs" :class="{'active': $route
+.path == '/beliefs'}">Убеждения</router-link></li>
+                <li><router-link to="/practice" :class="{'active': $rout
+e.path == '/practice'}">Проработка</router-link></li>
+            </ul>
+            </div> -->
+            <div class="navbar-end">
+                <!-- <router-link to="/setup" class="rounded-xl text-sm px-4 py-1 border border-gray-300 hover:bg-gray-100">настройки</router-link> -->
+
+                <!-- <ul class="menu menu-horizontal px-1">
+                    <li tabindex="0">
+                        <details>
+                            <summary>{{ projectName }}</summary>
+                            <ul class="p-2">
+                                <li v-for="project in projects">
+                                    <a :href="'?project=' + project">{{
+project }}</a>
+                                </li>
+                            </ul>
+                        </details>
+                    </li>
+                </ul> -->
+            </div>
+        </div>
+        <router-view></router-view>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-router@4.2.1/dist/vue-router.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-demi@0.14.5/lib/index.iife.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pinia@2.1.3/dist/pinia.iife.min.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script> -->
+
+    <script type="module">
+        const { createRouter, createWebHistory, createWebHashHistory } = VueRouter
+        import { createORM, Model, useRepo, mapRepos, Repository } from 'https://cdn.jsdelivr.net/npm/pinia-orm@1.6.7/+esm';
+        import createPersistPlugin from 'https://bloogrox.github.io/pinia-local-storage-plugin/index.js';
+
+
+        // const formatDateMixin = {
+        //     methods: {
+        //         formatDate(dateString) {
+        //             const date = dayjs(dateString);
+        //             return date.format('DD-MM-YYYY');
+        //         }
+        //     }
+        // }
+
+
+        /*** Project */
+        function getProjectName() {
+            let urlParams = new URLSearchParams(window.location.search);
+            return urlParams.has("project") ? urlParams.get("project") : "default";
+        }
+
+
+        /*** Pinia */
+        const pinia = Pinia.createPinia();
+
+        pinia.use(createPersistPlugin({bucket: getProjectName()}));
+
+
+        /*** ORM Init **/
+        const orm_config = {
+            model: {
+                withMeta: true,
+                hidden: [],
+                visible: ['*']
+            }
+        }
+        pinia.use(createORM(orm_config));
+
+
+        /***************************************************
+         *
+         * ORM Models
+         *
+         * */
+
+        // class Outcome extends Model {
+
+        //     static entity = 'outcomes'
+
+        //     static hidden = []
+
+        //     static fields () {
+        //         return {
+        //             id: this.uid(),
+        //             title: this.string(''),
+
+        //             // thoughts: this.hasMany(Thought, 'problem_id').onDelete('cascade'),
+        //         }
+        //     }
+        // }
+
+
+        /***************************************************
+         *
+         * Components
+         *
+         */
+
+        const Home = {
+            data() {
+                return {
+                    token: ''
+                }
+            },
+            methods: {
+                getUserId() {
+                    const api = new YandexWebmaster(this.token)
+                    const user_id = api.getUserId()
+                        .then( resp => resp.json() )
+                        .then( data => {
+                            console.log(data.user_id)
+                        })
+                }
+            },
+            template: `
+                <div>
+                    <input type="text" v-model="token" class="input input-bordered w-full">
+                    <div class="mt-5">
+                        <button @click="getUserId" class="btn">click</button>
+                    </div>
+                </div>
+            `
+        }
+
+        /***************************************************
+         *
+         * Ext
+         *
+         */
+        class YandexWebmaster {
+
+            api_url = 'https://api.webmaster.yandex.net/v4/'
+
+            constructor(token) {
+                this.token = token
+            }
+
+            getUserId() {
+                const url = this.api_url + 'user'
+                const options = {
+                    headers: {
+                        Authentication: 'OAuth ' + this.token
+                    }
+                }
+                return fetch(url, options)
+            }
+        }
+
+
+        /***************************************************
+         *
+         * Router
+         *
+         **/
+         const router = createRouter({
+            history: createWebHashHistory(),
+            routes: [
+                { path: '/', component: Home },
+            ],
+        });
+
+
+        const rootComp = {
+            computed: {
+                // ...Pinia.mapWritableState(pStore, [
+                //     'script'
+                // ]),
+                projectName() {
+                    return getProjectName()
+                },
+                projects() {
+                    return Object.keys(localStorage).filter(x => x != this.projectName)
+                }
+            },
+            mounted() {
+                // console.log('hello')
+                // const hosts = api.getHosts()
+                // console.log(hosts)
+                // const report = api.getPopularQueries()
+                // console.log(hosts)
+            }
+        }
+
+
+        const app = Vue.createApp(rootComp);
+        app.use(pinia);
+        app.use(router);
+        app.mount("#app");
+    </script>
+</body>
+</html>
