@@ -91,7 +91,7 @@ project }}</a>
     <script src="https://cdn.jsdelivr.net/npm/vue-router@4.2.1/dist/vue-router.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-demi@0.14.5/lib/index.iife.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pinia@2.1.3/dist/pinia.iife.min.js"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
 
     <script type="module">
         const { createRouter, createWebHistory, createWebHashHistory } = VueRouter
@@ -182,7 +182,8 @@ project }}</a>
         const Home = {
             data() {
                 return {
-                    token: ''
+                    token: '',
+                    data: [],
                 }
             },
             computed: {
@@ -194,6 +195,43 @@ project }}</a>
                     return []
                     // return useRepo(StatsRepo, pinia).getDates()
                 },
+                days() {
+                    const days_in_report = 3
+                    const days_offset = 2
+
+                    return [...Array(days_in_report).keys()]
+                        .map(x => dayjs().subtract(days_offset + x, "day").format("YYYY-MM-DD"))
+                },
+                rows() {
+                    const result = []
+
+                    if (!this.data.length) {
+                        return result
+                    }
+
+                    const queries = this.data[0].queries
+
+                    queries.forEach(query => {
+
+                        const dates = {}
+
+                        this.data.forEach(date => {
+                            const found = date.queries.filter(item => item.query_id == query.query_id)
+                            dates[date.date_from] = found.length ? found[0].indicators.AVG_SHOW_POSITION : null
+                        })
+
+                        result.push({
+                            query: {
+                                id: query.query_id,
+                                text: query.query_text,
+                            },
+                            shows: query.indicators.TOTAL_SHOWS,
+                            dates
+                        })
+                    })
+
+                    return result
+                },
             },
             methods: {
                 getUserId() {
@@ -204,6 +242,15 @@ project }}</a>
                             console.log(data.user_id)
                         })
                 }
+            },
+            created() {
+                const api = new YandexWebmasterStub()
+
+                this.days.forEach(d => {
+                    api.getPopularQueries(d)
+                    .then(response => response.json())
+                    .then(x => this.data.push(x))
+                })
             },
             template: `
                 <div>
@@ -226,34 +273,16 @@ project }}</a>
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Запросы (3)</th>
+                                        <th>Запросы ({{ data.length ? data[0].count : "" }})</th>
                                         <th>Частота</th>
-                                        <th class="w-10">11.09.2023</th>
-                                        <th class="w-10">12.09.2023</th>
-                                        <th class="w-10">13.09.2023</th>
+                                        <th v-for="day in days" class="w-10">{{ day }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td>Щебень</td>
-                                        <td>390</td>
-                                        <td>1</td>
-                                        <td>1</td>
-                                        <td>1</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Песок</td>
-                                        <td>--</td>
-                                        <td>2</td>
-                                        <td>2</td>
-                                        <td>2</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Купить</td>
-                                        <td>--</td>
-                                        <td>3</td>
-                                        <td>3</td>
-                                        <td>3</td>
+                                    <tr v-for="row in rows">
+                                        <td>{{ row.query.text }}</td>
+                                        <td>{{ row.shows }}</td>
+                                        <td v-for="day in days">{{ row.dates[day] }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -328,24 +357,26 @@ project }}</a>
                 return new Promise((resolve) => { resolve(Response.json(data)) })
             }
 
-            getPopularQueries() {
+            getPopularQueries(date) {
                 const data = {
-                    "count": 101,
-                    "date_from": "2023-09-20",
-                    "date_to": "2023-09-20",
+                    "count": 2,
+                    "date_from": date,
+                    "date_to": date,
                     "queries": [
                         {
                             "query_id": "ecec0d42afb22f45",
                             "query_text": "цвет волос 2017 модные",
                             "indicators": {
-                                "AVG_SHOW_POSITION": 8.0
+                                "AVG_SHOW_POSITION": 8.0,
+                                "TOTAL_SHOWS": 100,
                             }
                         },
                         {
                             "query_id": "82dec103cd0c7d34",
                             "query_text": "пыльник женский летний",
                             "indicators": {
-                                "AVG_SHOW_POSITION": 30.0
+                                "AVG_SHOW_POSITION": 30.0,
+                                "TOTAL_SHOWS": 100,
                             }
                         }
                     ]
