@@ -184,6 +184,7 @@ project }}</a>
                 return {
                     token: '',
                     data: [],
+                    hosts: [],
                 }
             },
             computed: {
@@ -251,6 +252,10 @@ project }}</a>
                     .then(response => response.json())
                     .then(x => this.data.push(x))
                 })
+
+                api.getHosts()
+                    .then(response => response.json())
+                    .then(x => { this.hosts = x["hosts"] })
             },
             template: `
                 <div>
@@ -268,6 +273,14 @@ project }}</a>
                             </tr>
                         </table>
                     </div-->
+                    <div class="mt-10">
+                        <label class="label">
+                            <span class="label-text">Выберите хост</span>
+                        </label>
+                        <select class="select select-bordered">
+                            <option v-for="host in hosts" :value="host.id">{{ host.unicode_host_url }}</option>
+                        </select>
+                    </div>
                     <div class="mt-10">
                         <div class="">
                             <table class="table">
