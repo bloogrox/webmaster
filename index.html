@@ -1,3 +1,40 @@
+<!--
+
+
+пользователь первый раз вошел
+он попадает на авторизацию
+далее он попадает в отчет
+
+нужно выбрать хост
+отчет: за последние дни позиции популярных запросов
+делаем несколько запросов за статистикой
+
+стата есть только за завершенные дни
+если сегодня 24 число, то стата имеется только до 22
+
+получение данных для хоста
+- пользователь инициирует нажатием кнопки
+- система смотрит каких дней нет за последние 90 дат
+- по отсутствующим дням загружает
+- сохраняет в local storage
+
+показ отчета
+- по строкам у нас запрос
+- по столбцам даты
+- берем самый свежий день отсортированный по позиции
+
+
+хранилище
+[
+    {date: xx-xx-xxxx, queries: []}
+    ... or
+    {date: xx-xx-xxxx, query: "aaaaa", avg_position_size: 8}
+    {date: xx-xx-xxxx, query: "bbbbb", avg_position_size: 5}
+    ... or
+]
+
+
+ -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -118,6 +155,23 @@ project }}</a>
         //     }
         // }
 
+        class StatsRepo extends Repository {
+
+            use = Stats
+
+            getNewestDate() {
+                return {queries: []}  // .orderBy('date', 'desc').first()
+            }
+
+            getSearchQueries(){
+                return this.getNewestDate().queries.toSorted(x => x.indicators.AVG_SHOW_POSITION)
+            }
+
+            getDates() {
+                return []  // .orderBy('date', 'desc')
+            }
+
+        }
 
         /***************************************************
          *
@@ -131,9 +185,19 @@ project }}</a>
                     token: ''
                 }
             },
+            computed: {
+                search_queries() {
+                    return []
+                    // return useRepo(StatsRepo, pinia).getSearchQueries()  // get most recent date, get queries
+                },
+                dates() {
+                    return []
+                    // return useRepo(StatsRepo, pinia).getDates()
+                },
+            },
             methods: {
                 getUserId() {
-                    const api = new YandexWebmaster(this.token)
+                    const api = new YandexWebmasterStub(this.token)
                     const user_id = api.getUserId()
                         .then( resp => resp.json() )
                         .then( data => {
@@ -143,9 +207,57 @@ project }}</a>
             },
             template: `
                 <div>
-                    <input type="text" v-model="token" class="input input-bordered w-full">
-                    <div class="mt-5">
+                    <!--input type="text" v-model="token" class="input input-bordered w-full"-->
+                    <!--div class="mt-5">
                         <button @click="getUserId" class="btn">click</button>
+                    </div-->
+                    <!--div class="mt-10">
+                        <table>
+                            <tr v-for="search_query in search_queries">
+                                <td>search query.text</td>
+                                <td v-for="date in dates">
+                                    date.queries.filter(x)
+                                </td>
+                            </tr>
+                        </table>
+                    </div-->
+                    <div class="mt-10">
+                        <div class="">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Запросы (3)</th>
+                                        <th>Частота</th>
+                                        <th class="w-10">11.09.2023</th>
+                                        <th class="w-10">12.09.2023</th>
+                                        <th class="w-10">13.09.2023</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Щебень</td>
+                                        <td>390</td>
+                                        <td>1</td>
+                                        <td>1</td>
+                                        <td>1</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Песок</td>
+                                        <td>--</td>
+                                        <td>2</td>
+                                        <td>2</td>
+                                        <td>2</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Купить</td>
+                                        <td>--</td>
+                                        <td>3</td>
+                                        <td>3</td>
+                                        <td>3</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             `
@@ -175,6 +287,74 @@ project }}</a>
             }
         }
 
+
+        class YandexWebmasterStub {
+
+            getUserId() {
+                const data = {
+                    user_id: 9793111
+                }
+
+                return new Promise((resolve) => { resolve(Response.json(data)) })
+            }
+
+            getHosts() {
+                const data = {
+                    "hosts": [
+                        {
+                            "host_id": "https:eleganty.ru:443",
+                            "ascii_host_url": "https://eleganty.ru/",
+                            "unicode_host_url": "https://eleganty.ru/",
+                            "verified": true,
+                            "main_mirror": null
+                        },
+                        {
+                            "host_id": "http:eleganty.ru:80",
+                            "ascii_host_url": "http://eleganty.ru/",
+                            "unicode_host_url": "http://eleganty.ru/",
+                            "verified": true,
+                            "main_mirror": null
+                        },
+                        {
+                            "host_id": "http:unilook.ru:80",
+                            "ascii_host_url": "http://unilook.ru/",
+                            "unicode_host_url": "http://unilook.ru/",
+                            "verified": true,
+                            "main_mirror": null
+                        }
+                    ]
+                }
+
+                return new Promise((resolve) => { resolve(Response.json(data)) })
+            }
+
+            getPopularQueries() {
+                const data = {
+                    "count": 101,
+                    "date_from": "2023-09-20",
+                    "date_to": "2023-09-20",
+                    "queries": [
+                        {
+                            "query_id": "ecec0d42afb22f45",
+                            "query_text": "цвет волос 2017 модные",
+                            "indicators": {
+                                "AVG_SHOW_POSITION": 8.0
+                            }
+                        },
+                        {
+                            "query_id": "82dec103cd0c7d34",
+                            "query_text": "пыльник женский летний",
+                            "indicators": {
+                                "AVG_SHOW_POSITION": 30.0
+                            }
+                        }
+                    ]
+                }
+
+                return new Promise((resolve) => { resolve(Response.json(data)) })
+            }
+
+        }
 
         /***************************************************
          *
@@ -218,26 +398,26 @@ project }}</a>
 
     </script>
     <script>
-        window.YaAuthSuggest.init(
-            {
-                client_id: 'ccba5862126b4b2aba1261e5dfd5165d',
-                response_type: 'token',
-                redirect_uri: 'https://bloogrox.github.io/webmaster/auth.html'
-            },
-          'https://bloogrox.github.io',
-          {
-            view: "button",
-            parentId: "buttonContainerId",
-            buttonSize: 'm',
-            buttonView: 'icon',
-            buttonTheme: 'light',
-            buttonBorderRadius: "0",
-            buttonIcon: 'ya',
-          }
-        )
-        .then(({handler}) => handler())
-        .then(data => console.log('Сообщение с токеном', data))
-        .catch(error => console.log('Обработка ошибки', error))
-      </script>
+        // window.YaAuthSuggest.init(
+        //     {
+        //         client_id: 'ccba5862126b4b2aba1261e5dfd5165d',
+        //         response_type: 'token',
+        //         redirect_uri: 'https://bloogrox.github.io/webmaster/auth.html'
+        //     },
+        //     'https://bloogrox.github.io',
+        //     {
+        //         view: "button",
+        //         parentId: "buttonContainerId",
+        //         buttonSize: 'm',
+        //         buttonView: 'icon',
+        //         buttonTheme: 'light',
+        //         buttonBorderRadius: "0",
+        //         buttonIcon: 'ya',
+        //     }
+        // )
+        // .then(({handler}) => handler())
+        // .then(data => console.log('Сообщение с токеном', data))
+        // .catch(error => console.log('Обработка ошибки', error))
+    </script>
 </body>
 </html>
