@@ -391,7 +391,8 @@ project }}</a>
                 const options = {
                     headers: {
                         Authorization: 'OAuth ' + this.token
-                    }
+                    },
+                    mode: "cors",
                 }
                 return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
             }
@@ -401,7 +402,8 @@ project }}</a>
                 const options = {
                     headers: {
                         Authorization: 'OAuth ' + this.token
-                    }
+                    },
+                    mode: "cors",
                 }
                 return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
             }
