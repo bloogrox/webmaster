@@ -390,7 +390,7 @@ project }}</a>
                 const url = this.api_url + 'user'
                 const options = {
                     headers: {
-                        Authentication: 'OAuth ' + this.token
+                        Authorization: 'OAuth ' + this.token
                     }
                 }
                 return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
@@ -400,7 +400,7 @@ project }}</a>
                 const url = this.api_url + 'user/' + user_id + '/hosts'
                 const options = {
                     headers: {
-                        Authentication: 'OAuth ' + this.token
+                        Authorization: 'OAuth ' + this.token
                     }
                 }
                 return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
