@@ -118,6 +118,9 @@ project }}</a>
             buttonIcon: 'ya',
         }
 
+        function is_prod() {
+            return window.location.hostname.includes('bloogrox.github.io')
+        }
 
         // const formatDateMixin = {
         //     methods: {
@@ -153,14 +156,14 @@ project }}</a>
 
 
         /*** ORM Init **/
-        const orm_config = {
-            model: {
-                withMeta: true,
-                hidden: [],
-                visible: ['*']
-            }
-        }
-        pinia.use(createORM(orm_config));
+        // const orm_config = {
+        //     model: {
+        //         withMeta: true,
+        //         hidden: [],
+        //         visible: ['*']
+        //     }
+        // }
+        // pinia.use(createORM(orm_config));
 
 
         /***************************************************
@@ -185,23 +188,23 @@ project }}</a>
         //     }
         // }
 
-        class StatsRepo extends Repository {
+        // class StatsRepo extends Repository {
 
-            use = Stats
+        //     use = Stats
 
-            getNewestDate() {
-                return {queries: []}  // .orderBy('date', 'desc').first()
-            }
+        //     getNewestDate() {
+        //         return {queries: []}  // .orderBy('date', 'desc').first()
+        //     }
 
-            getSearchQueries(){
-                return this.getNewestDate().queries.toSorted(x => x.indicators.AVG_SHOW_POSITION)
-            }
+        //     getSearchQueries(){
+        //         return this.getNewestDate().queries.toSorted(x => x.indicators.AVG_SHOW_POSITION)
+        //     }
 
-            getDates() {
-                return []  // .orderBy('date', 'desc')
-            }
+        //     getDates() {
+        //         return []  // .orderBy('date', 'desc')
+        //     }
 
-        }
+        // }
 
         /***************************************************
          *
@@ -212,20 +215,22 @@ project }}</a>
         const Home = {
             data() {
                 return {
-                    token: '',
                     data: [],
                     hosts: [],
                 }
             },
             computed: {
-                search_queries() {
-                    return []
-                    // return useRepo(StatsRepo, pinia).getSearchQueries()  // get most recent date, get queries
-                },
-                dates() {
-                    return []
-                    // return useRepo(StatsRepo, pinia).getDates()
-                },
+                ...Pinia.mapWritableState(pStore, [
+                    'token'
+                ]),
+                // search_queries() {
+                //     return []
+                //     // return useRepo(StatsRepo, pinia).getSearchQueries()  // get most recent date, get queries
+                // },
+                // dates() {
+                //     return []
+                //     // return useRepo(StatsRepo, pinia).getDates()
+                // },
                 days() {
                     const days_in_report = 3
                     const days_offset = 2
@@ -269,28 +274,36 @@ project }}</a>
                 },
             },
             methods: {
-                getUserId() {
-                    const yandex = new YandexWebmasterStub(this.token)
+                // getUserId() {
+                //     const yandex = new YandexWebmasterStub(this.token)
 
-                    const user_id = yandex.getUserId()
-                        .then( resp => resp.json() )
-                        .then( data => {
-                            console.log(data.user_id)
-                        })
-                }
+                //     const user_id = yandex.getUserId()
+                //         .then( resp => resp.json() )
+                //         .then( data => {
+                //             console.log(data.user_id)
+                //         })
+                // }
             },
             created() {
-                const yandex = new YandexWebmasterStub()
+                const yandex_stub = new YandexWebmasterStub()
 
                 this.days.forEach(d => {
-                    yandex.getPopularQueries(d)
+                    yandex_stub.getPopularQueries(d)
                     .then(response => response.json())
                     .then(x => { this.data.push(x) })
                 })
 
-                yandex.getHosts()
-                    .then(response => response.json())
-                    .then(x => { this.hosts = x["hosts"] })
+                if (this.token.length) {
+                    const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
+
+                    yandex.getUserId()
+                        .then(r => r.json())
+                        .then(b => {
+                            yandex.getHosts(b.user_id)
+                                .then(r => r.json())
+                                .then(x => { this.hosts = x["hosts"] })
+                        })
+                }
             },
             template: `
                 <div>
@@ -366,6 +379,7 @@ project }}</a>
          */
         class YandexWebmaster {
 
+            backend_url = 'https://putridsmallfilesize--bloogrox.repl.co'
             api_url = 'https://api.webmaster.yandex.net/v4/'
 
             constructor(token) {
@@ -379,7 +393,17 @@ project }}</a>
                         Authentication: 'OAuth ' + this.token
                     }
                 }
-                return fetch(url, options)
+                return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
+            }
+
+            getHosts(user_id) {
+                const url = this.api_url + 'user/' + user_id + '/hosts'
+                const options = {
+                    headers: {
+                        Authentication: 'OAuth ' + this.token
+                    }
+                }
+                return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
             }
         }
 
@@ -394,7 +418,7 @@ project }}</a>
                 return new Promise((resolve) => { resolve(Response.json(data)) })
             }
 
-            getHosts() {
+            getHosts(user_id) {
                 const data = {
                     "hosts": [
                         {
@@ -483,17 +507,17 @@ project }}</a>
                     return this.token.length > 0
                 },
                 is_prod() {
-                    return window.location.hostname.includes('bloogrox.github.io')
+                    return is_prod()
                 }
             },
             mounted() {
-                console.log("is prod", this.is_prod)
+                console.log("is prod", is_prod())
                 // const hosts = api.getHosts()
                 // console.log(hosts)
                 // const report = api.getPopularQueries()
                 // console.log(hosts)
 
-                if (this.is_prod) {
+                if (is_prod() && !this.has_token) {
                     window.YaAuthSuggest.init(
                         ya_auth_init_config,
                         'https://bloogrox.github.io',
@@ -501,7 +525,7 @@ project }}</a>
                     )
                     .then(({handler}) => handler())
                     .then(data => {
-                        console.log('Сообщение с токеном', data)
+                        // console.log('Сообщение с токеном', data)
                         this.token = data.access_token
                     })
                     .catch(error => console.log('Обработка ошибки', error))
