@@ -502,7 +502,7 @@ project }}</a>
                     .then(({handler}) => handler())
                     .then(data => {
                         console.log('Сообщение с токеном', data)
-                        // this.token = data.token
+                        this.token = data.access_token
                     })
                     .catch(error => console.log('Обработка ошибки', error))
                 }
