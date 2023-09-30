@@ -66,7 +66,10 @@ e.path == '/practice'}">Проработка</router-link></li>
             </ul>
             </div> -->
             <div class="navbar-end">
-                <!-- <router-link to="/setup" class="rounded-xl text-sm px-4 py-1 border border-gray-300 hover:bg-gray-100">настройки</router-link> -->
+                <!-- <router-link v-if="!is_prod" to="/token" class="rounded-xl text-sm px-4 py-1 border border-gray-300 hover:bg-gray-100">токен</router-link> -->
+                <router-link v-if="!is_prod" to="/token" class="link text-sm">токен</router-link>
+
+                <span id="buttonContainerId"></span>
 
                 <!-- <ul class="menu menu-horizontal px-1">
                     <li tabindex="0">
@@ -99,6 +102,23 @@ project }}</a>
         import createPersistPlugin from 'https://bloogrox.github.io/pinia-local-storage-plugin/index.js';
 
 
+        const ya_auth_init_config = {
+            client_id: 'ccba5862126b4b2aba1261e5dfd5165d',
+            response_type: 'token',
+            redirect_uri: 'https://bloogrox.github.io/webmaster/auth.html'
+        }
+
+        const ya_auth_button_config = {
+            view: "button",
+            parentId: "buttonContainerId",
+            buttonSize: 'm',
+            buttonView: 'icon',
+            buttonTheme: 'light',
+            buttonBorderRadius: "0",
+            buttonIcon: 'ya',
+        }
+
+
         // const formatDateMixin = {
         //     methods: {
         //         formatDate(dateString) {
@@ -120,6 +140,16 @@ project }}</a>
         const pinia = Pinia.createPinia();
 
         pinia.use(createPersistPlugin({bucket: getProjectName()}));
+
+
+        /***
+         * Storage
+         */
+        const pStore = Pinia.defineStore('project', {
+            state: () => ({
+                token: ""
+            })
+        })
 
 
         /*** ORM Init **/
@@ -201,7 +231,11 @@ project }}</a>
                     const days_offset = 2
 
                     return [...Array(days_in_report).keys()]
-                        .map(x => dayjs().subtract(days_offset + x, "day").format("YYYY-MM-DD"))
+                        .map(x => {
+                            return dayjs()
+                                .subtract(days_offset + x, "day")
+                                .format("YYYY-MM-DD")
+                        })
                 },
                 rows() {
                     const result = []
@@ -214,11 +248,11 @@ project }}</a>
 
                     queries.forEach(query => {
 
-                        const dates = {}
+                        const columns = {}
 
                         this.data.forEach(date => {
                             const found = date.queries.filter(item => item.query_id == query.query_id)
-                            dates[date.date_from] = found.length ? found[0].indicators.AVG_SHOW_POSITION : null
+                            columns[date.date_from] = found.length ? found[0].indicators.AVG_SHOW_POSITION : null
                         })
 
                         result.push({
@@ -227,7 +261,7 @@ project }}</a>
                                 text: query.query_text,
                             },
                             shows: query.indicators.TOTAL_SHOWS,
-                            dates
+                            dates: columns,
                         })
                     })
 
@@ -236,8 +270,9 @@ project }}</a>
             },
             methods: {
                 getUserId() {
-                    const api = new YandexWebmasterStub(this.token)
-                    const user_id = api.getUserId()
+                    const yandex = new YandexWebmasterStub(this.token)
+
+                    const user_id = yandex.getUserId()
                         .then( resp => resp.json() )
                         .then( data => {
                             console.log(data.user_id)
@@ -245,21 +280,20 @@ project }}</a>
                 }
             },
             created() {
-                const api = new YandexWebmasterStub()
+                const yandex = new YandexWebmasterStub()
 
                 this.days.forEach(d => {
-                    api.getPopularQueries(d)
+                    yandex.getPopularQueries(d)
                     .then(response => response.json())
-                    .then(x => this.data.push(x))
+                    .then(x => { this.data.push(x) })
                 })
 
-                api.getHosts()
+                yandex.getHosts()
                     .then(response => response.json())
                     .then(x => { this.hosts = x["hosts"] })
             },
             template: `
                 <div>
-                    <!--input type="text" v-model="token" class="input input-bordered w-full"-->
                     <!--div class="mt-5">
                         <button @click="getUserId" class="btn">click</button>
                     </div-->
@@ -304,6 +338,26 @@ project }}</a>
                 </div>
             `
         }
+
+
+        const TokenComp = {
+            computed: {
+                ...Pinia.mapWritableState(pStore, [
+                    'token'
+                ]),
+            },
+            template: `
+                <div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Введите токен</span>
+                        </label>
+                        <input type="text" v-model="token" class="input input-bordered w-full">
+                    </div>
+                </div>
+            `
+        }
+
 
         /***************************************************
          *
@@ -409,28 +463,54 @@ project }}</a>
             history: createWebHashHistory(),
             routes: [
                 { path: '/', component: Home },
+                { path: '/token', component: TokenComp },
             ],
         });
 
 
         const rootComp = {
             computed: {
-                // ...Pinia.mapWritableState(pStore, [
-                //     'script'
-                // ]),
+                ...Pinia.mapWritableState(pStore, [
+                    'token'
+                ]),
                 projectName() {
                     return getProjectName()
                 },
                 projects() {
                     return Object.keys(localStorage).filter(x => x != this.projectName)
+                },
+                has_token() {
+                    return this.token.length > 0
+                },
+                is_prod() {
+                    return window.location.pathname.includes('bloogrox.github.io')
                 }
             },
             mounted() {
-                // console.log('hello')
+                console.log("is prod", this.is_prod)
                 // const hosts = api.getHosts()
                 // console.log(hosts)
                 // const report = api.getPopularQueries()
                 // console.log(hosts)
+
+                if (this.is_prod) {
+                    window.YaAuthSuggest.init(
+                        ya_auth_init_config,
+                        'https://bloogrox.github.io',
+                        ya_auth_button_config
+                    )
+                    .then(({handler}) => handler())
+                    .then(data => {
+                        console.log('Сообщение с токеном', data)
+                        // this.token = data.token
+                    })
+                    .catch(error => console.log('Обработка ошибки', error))
+                }
+            },
+            created() {
+                if (!this.has_token) {
+                    console.log("token is empty")
+                }
             }
         }
 
@@ -439,29 +519,6 @@ project }}</a>
         app.use(pinia);
         app.use(router);
         app.mount("#app");
-
-    </script>
-    <script>
-        // window.YaAuthSuggest.init(
-        //     {
-        //         client_id: 'ccba5862126b4b2aba1261e5dfd5165d',
-        //         response_type: 'token',
-        //         redirect_uri: 'https://bloogrox.github.io/webmaster/auth.html'
-        //     },
-        //     'https://bloogrox.github.io',
-        //     {
-        //         view: "button",
-        //         parentId: "buttonContainerId",
-        //         buttonSize: 'm',
-        //         buttonView: 'icon',
-        //         buttonTheme: 'light',
-        //         buttonBorderRadius: "0",
-        //         buttonIcon: 'ya',
-        //     }
-        // )
-        // .then(({handler}) => handler())
-        // .then(data => console.log('Сообщение с токеном', data))
-        // .catch(error => console.log('Обработка ошибки', error))
     </script>
 </body>
 </html>
