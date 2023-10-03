@@ -57,19 +57,16 @@ t-xl">Home</router-link>
             </div>
             <!-- <div class="navbar-center hidden lg:flex">
             <ul class="menu menu-horizontal px-1">
-                <li><router-link to="/journal" :class="{'active': $route
-.path == '/journal'}">Дневник</router-link></li>
-                <li><router-link to="/beliefs" :class="{'active': $route
-.path == '/beliefs'}">Убеждения</router-link></li>
-                <li><router-link to="/practice" :class="{'active': $rout
-e.path == '/practice'}">Проработка</router-link></li>
+                <li><router-link to="/" :class="{'active': $route
+.path == '/'}"></router-link></li>
             </ul>
             </div> -->
             <div class="navbar-end">
-                <!-- <router-link v-if="!is_prod" to="/token" class="rounded-xl text-sm px-4 py-1 border border-gray-300 hover:bg-gray-100">токен</router-link> -->
-                <router-link v-if="!is_prod" to="/token" class="link text-sm">токен</router-link>
-
-                <span id="buttonContainerId"></span>
+                <ul class="menu menu-horizontal px-1">
+                    <li v-if="is_prod && !has_token"><span id="buttonContainerId"></span></li>
+                    <li v-if="!is_prod"><router-link to="/token" class="link text-sm">токен</router-link></li>
+                    <li v-if="has_token"><a href="" @click.prevent="logout" class="text-sm">Выход</a></li>
+                </ul>
 
                 <!-- <ul class="menu menu-horizontal px-1">
                     <li tabindex="0">
@@ -570,6 +567,11 @@ project }}</a>
                 is_prod() {
                     return is_prod()
                 }
+            },
+            methods: {
+                logout() {
+                    this.token = ''
+                },
             },
             mounted() {
                 console.log("is prod", is_prod())
