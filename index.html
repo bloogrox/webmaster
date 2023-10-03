@@ -220,25 +220,6 @@ project }}</a>
                 ...Pinia.mapWritableState(pStore, [
                     'token'
                 ]),
-                // search_queries() {
-                //     return []
-                //     // return useRepo(StatsRepo, pinia).getSearchQueries()  // get most recent date, get queries
-                // },
-                // dates() {
-                //     return []
-                //     // return useRepo(StatsRepo, pinia).getDates()
-                // },
-            },
-            methods: {
-                // getUserId() {
-                //     const yandex = new YandexWebmasterStub(this.token)
-
-                //     const user_id = yandex.getUserId()
-                //         .then( resp => resp.json() )
-                //         .then( data => {
-                //             console.log(data.user_id)
-                //         })
-                // }
             },
             created() {
                 if (this.token.length) {
@@ -257,19 +238,6 @@ project }}</a>
             },
             template: `
                 <div>
-                    <!--div class="mt-5">
-                        <button @click="getUserId" class="btn">click</button>
-                    </div-->
-                    <!--div class="mt-10">
-                        <table>
-                            <tr v-for="search_query in search_queries">
-                                <td>search query.text</td>
-                                <td v-for="date in dates">
-                                    date.queries.filter(x)
-                                </td>
-                            </tr>
-                        </table>
-                    </div-->
                     <div class="mt-10">
                         <h1 class="text-3xl">Хосты</h1>
                         <div class="mt-5">
@@ -281,12 +249,6 @@ project }}</a>
                                 </div>
                             </div>
                         </div>
-                        <!--label class="label">
-                            <span class="label-text">Выберите хост</span>
-                        </label-->
-                        <!--select class="select select-bordered">
-                            <option v-for="host in hosts" :value="host.id">{{ host.unicode_host_url }}</option>
-                        </select-->
                     </div>
                 </div>
             `
