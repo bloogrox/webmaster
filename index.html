@@ -327,7 +327,12 @@ project }}</a>
                     this.days.forEach(date => {
                         yandex.getPopularQueries(this.user_id, this.host_id, date)
                             .then(response => response.json())
-                            .then(x => { this.data.push(x) })
+                            .then(x => {
+                                console.log(x)
+
+                                this.data.push(x)
+                            })
+                            .catch(error => { console.log(error) })
                     })
                 }
             },
@@ -467,7 +472,7 @@ project }}</a>
                 return new Promise((resolve) => { resolve(Response.json(data)) })
             }
 
-            getPopularQueries(date) {
+            getPopularQueries(user_id, host_id, date) {
                 const data = {
                     "count": 2,
                     "date_from": date,
