@@ -419,7 +419,7 @@ project }}</a>
 
             getPopularQueries(user_id, host_id, date) {
                 // const url = this.api_url + 'user/' + user_id + '/hosts/' + host_id + '/search-queries/popular'
-                const url = `${this.api_url}${user}/${user_id}/hosts/${host_id}/search-queries/popular?date_from=${date}&date_to=${date}&order_by=TOTAL_SHOWS&device_type_indicator=ALL&limit=100&query_indicator=AVG_SHOW_POSITION&query_indicator=TOTAL_SHOWS`
+                const url = `${this.api_url}user/${user_id}/hosts/${host_id}/search-queries/popular?date_from=${date}&date_to=${date}&order_by=TOTAL_SHOWS&device_type_indicator=ALL&limit=100&query_indicator=AVG_SHOW_POSITION&query_indicator=TOTAL_SHOWS`
 
                 const options = {
                     headers: {
