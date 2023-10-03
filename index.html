@@ -215,7 +215,7 @@ project }}</a>
         const Home = {
             data() {
                 return {
-                    data: [],
+                    user_id: null,
                     hosts: [],
                 }
             },
@@ -231,6 +231,86 @@ project }}</a>
                 //     return []
                 //     // return useRepo(StatsRepo, pinia).getDates()
                 // },
+            },
+            methods: {
+                // getUserId() {
+                //     const yandex = new YandexWebmasterStub(this.token)
+
+                //     const user_id = yandex.getUserId()
+                //         .then( resp => resp.json() )
+                //         .then( data => {
+                //             console.log(data.user_id)
+                //         })
+                // }
+            },
+            created() {
+                if (this.token.length) {
+                    const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
+
+                    yandex.getUserId()
+                        .then(r => r.json())
+                        .then(b => {
+                            this.user_id = b.user_id
+
+                            yandex.getHosts(b.user_id)
+                                .then(r => r.json())
+                                .then(x => { this.hosts = x["hosts"] })
+                        })
+                }
+            },
+            template: `
+                <div>
+                    <!--div class="mt-5">
+                        <button @click="getUserId" class="btn">click</button>
+                    </div-->
+                    <!--div class="mt-10">
+                        <table>
+                            <tr v-for="search_query in search_queries">
+                                <td>search query.text</td>
+                                <td v-for="date in dates">
+                                    date.queries.filter(x)
+                                </td>
+                            </tr>
+                        </table>
+                    </div-->
+                    <div class="mt-10">
+                        <h1 class="text-3xl">Хосты</h1>
+                        <div class="mt-5">
+                            <div class="flex flex-row flex-wrap gap-5">
+                                <div v-for="host in hosts" class="w-48 p-4 bg-slate-500 text-white rounded-xl">
+                                    <router-link :to="'/hosts/' + user_id + '/' + host.host_id" class="">
+                                        {{ host.unicode_host_url }}
+                                    </router-link>
+                                </div>
+                            </div>
+                        </div>
+                        <!--label class="label">
+                            <span class="label-text">Выберите хост</span>
+                        </label-->
+                        <!--select class="select select-bordered">
+                            <option v-for="host in hosts" :value="host.id">{{ host.unicode_host_url }}</option>
+                        </select-->
+                    </div>
+                </div>
+            `
+        }
+
+        const HostComp = {
+            data() {
+                return {
+                    data: [],
+                }
+            },
+            computed: {
+                ...Pinia.mapWritableState(pStore, [
+                    'token'
+                ]),
+                user_id() {
+                    return this.$route.params.user_id
+                },
+                host_id() {
+                    return this.$route.params.host_id
+                },
                 days() {
                     const days_in_report = 3
                     const days_offset = 2
@@ -273,61 +353,27 @@ project }}</a>
                     return result
                 },
             },
-            methods: {
-                // getUserId() {
-                //     const yandex = new YandexWebmasterStub(this.token)
-
-                //     const user_id = yandex.getUserId()
-                //         .then( resp => resp.json() )
-                //         .then( data => {
-                //             console.log(data.user_id)
-                //         })
-                // }
-            },
             created() {
-                const yandex_stub = new YandexWebmasterStub()
+                // const yandex_stub = new YandexWebmasterStub()
 
-                this.days.forEach(d => {
-                    yandex_stub.getPopularQueries(d)
-                    .then(response => response.json())
-                    .then(x => { this.data.push(x) })
-                })
+                // this.days.forEach(d => {
+                //     yandex_stub.getPopularQueries(d)
+                //     .then(response => response.json())
+                //     .then(x => { this.data.push(x) })
+                // })
 
                 if (this.token.length) {
                     const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
 
-                    yandex.getUserId()
-                        .then(r => r.json())
-                        .then(b => {
-                            yandex.getHosts(b.user_id)
-                                .then(r => r.json())
-                                .then(x => { this.hosts = x["hosts"] })
-                        })
+                    this.days.forEach(date => {
+                        yandex.getPopularQueries(this.user_id, this.host_id, date)
+                            .then(response => response.json())
+                            .then(x => { this.data.push(x) })
+                    })
                 }
             },
             template: `
                 <div>
-                    <!--div class="mt-5">
-                        <button @click="getUserId" class="btn">click</button>
-                    </div-->
-                    <!--div class="mt-10">
-                        <table>
-                            <tr v-for="search_query in search_queries">
-                                <td>search query.text</td>
-                                <td v-for="date in dates">
-                                    date.queries.filter(x)
-                                </td>
-                            </tr>
-                        </table>
-                    </div-->
-                    <div class="mt-10">
-                        <label class="label">
-                            <span class="label-text">Выберите хост</span>
-                        </label>
-                        <select class="select select-bordered">
-                            <option v-for="host in hosts" :value="host.id">{{ host.unicode_host_url }}</option>
-                        </select>
-                    </div>
                     <div class="mt-10">
                         <div class="">
                             <table class="table">
@@ -351,7 +397,6 @@ project }}</a>
                 </div>
             `
         }
-
 
         const TokenComp = {
             computed: {
@@ -399,6 +444,19 @@ project }}</a>
 
             getHosts(user_id) {
                 const url = this.api_url + 'user/' + user_id + '/hosts'
+                const options = {
+                    headers: {
+                        Authorization: 'OAuth ' + this.token
+                    },
+                    mode: "cors",
+                }
+                return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
+            }
+
+            getPopularQueries(user_id, host_id, date) {
+                // const url = this.api_url + 'user/' + user_id + '/hosts/' + host_id + '/search-queries/popular'
+                const url = `${this.api_url}${user}/${user_id}/hosts/${host_id}/search-queries/popular?date_from=${date}&date_to=${date}&order_by=TOTAL_SHOWS&device_type_indicator=ALL&limit=100&query_indicator=AVG_SHOW_POSITION&query_indicator=TOTAL_SHOWS`
+
                 const options = {
                     headers: {
                         Authorization: 'OAuth ' + this.token
@@ -490,6 +548,7 @@ project }}</a>
             routes: [
                 { path: '/', component: Home },
                 { path: '/token', component: TokenComp },
+                { path: '/hosts/:user_id/:host_id', component: HostComp },
             ],
         });
 
