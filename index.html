@@ -272,7 +272,7 @@ project }}</a>
                 },
                 days() {
                     const days_in_report = 3
-                    const days_offset = 2
+                    const days_offset = 3
 
                     return [...Array(days_in_report).keys()]
                         .map(x => {
@@ -281,46 +281,32 @@ project }}</a>
                                 .format("YYYY-MM-DD")
                         })
                 },
-                rows() {
+                report() {
+                    const keywords = new Set(this.data.map(x => x.keyword))
+                    const sort_col = this.days[0]
+
                     const result = []
 
-                    if (!this.data.length) {
-                        return result
-                    }
-
-                    const queries = this.data[0].queries
-
-                    queries.forEach(query => {
-
-                        const columns = {}
-
-                        this.data.forEach(date => {
-                            const found = date.queries.filter(item => item.query_id == query.query_id)
-                            columns[date.date_from] = found.length ? found[0].indicators.AVG_SHOW_POSITION : null
+                    keywords.forEach(k => {
+                        const row = {
+                            keyword: k,
+                        }
+                        this.days.forEach(date => {
+                            row[date] = this.findPosition(k, date)
                         })
-
-                        result.push({
-                            query: {
-                                id: query.query_id,
-                                text: query.query_text,
-                            },
-                            shows: query.indicators.TOTAL_SHOWS,
-                            dates: columns,
-                        })
+                        result.push(row)
                     })
 
-                    return result
+                    return result.toSorted((a, b) => a[sort_col] - b[sort_col])
+                },
+            },
+            methods: {
+                findPosition(keyword, date) {
+                    const res = this.data.filter(x => x.keyword==keyword && x.date==date)
+                    return (res.length > 0) ? res[0].position : undefined
                 },
             },
             created() {
-                // const yandex_stub = new YandexWebmasterStub()
-
-                // this.days.forEach(d => {
-                //     yandex_stub.getPopularQueries(d)
-                //     .then(response => response.json())
-                //     .then(x => { this.data.push(x) })
-                // })
-
                 if (this.token.length) {
                     const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
 
@@ -330,7 +316,15 @@ project }}</a>
                             .then(x => {
                                 console.log(x)
 
-                                this.data.push(x)
+                                x.queries.forEach(item => {
+                                    const row = {
+                                        keyword: item.query_text,
+                                        date: date,
+                                        position: item.indicators.AVG_SHOW_POSITION
+                                    }
+
+                                    this.data.push(row)
+                                })
                             })
                             .catch(error => { console.log(error) })
                     })
@@ -343,16 +337,14 @@ project }}</a>
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Запросы ({{ data.length ? data[0].count : "" }})</th>
-                                        <th>Частота</th>
+                                        <th>Запросы</th>
                                         <th v-for="day in days" class="w-10">{{ day }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="row in rows">
-                                        <td>{{ row.query.text }}</td>
-                                        <td>{{ row.shows }}</td>
-                                        <td v-for="day in days">{{ row.dates[day] }}</td>
+                                    <tr v-for="row in report">
+                                        <td>{{ row.keyword }}</td>
+                                        <td v-for="day in days">{{ row[day] }}</td>
                                     </tr>
                                 </tbody>
                             </table>
