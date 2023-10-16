@@ -285,7 +285,6 @@ project }}</a>
                 },
                 report() {
                     const keywords = new Set(this.data.map(x => x.keyword))
-                    // const sort_col = this.days[0]
 
                     const result = []
 
@@ -294,21 +293,31 @@ project }}</a>
                             keyword: k,
                         }
                         this.days.forEach(date => {
-                            row[date] = this.findPosition(k, date)
+                            row[date] = this.findStats(k, date)
                         })
                         result.push(row)
                     })
 
                     return result.toSorted((a, b) => {
                         const m = this.sort_direction == 'asc' ? 1 : -1
-                        return (a[this.sort_column] - b[this.sort_column]) * m
+                        return (a[this.sort_column].position - b[this.sort_column].position) * m
                     })
                 },
             },
             methods: {
-                findPosition(keyword, date) {
+                findStats(keyword, date) {
                     const res = this.data.filter(x => x.keyword==keyword && x.date==date)
-                    return (res.length > 0) ? res[0].position : undefined
+                    if (res.length > 0) {
+                        return {
+                            position: res[0].position,
+                            clicks: res[0].clicks,
+                        }
+                    }
+
+                    return {
+                        position: undefined,
+                        clicks: undefined,
+                    }
                 },
                 getClassCfg(num) {
                     const conf = [
@@ -356,7 +365,8 @@ project }}</a>
                                     const row = {
                                         keyword: item.query_text,
                                         date: date,
-                                        position: item.indicators.AVG_SHOW_POSITION
+                                        position: item.indicators.AVG_SHOW_POSITION,
+                                        clicks: item.indicators.TOTAL_CLICKS,
                                     }
 
                                     this.data.push(row)
@@ -384,7 +394,13 @@ project }}</a>
                                 <tbody>
                                     <tr v-for="row in report">
                                         <td>{{ row.keyword }}</td>
-                                        <td v-for="day in days" :class="getClassCfg(row[day])"><div >{{ row[day] }}</div></td>
+                                        <td v-for="day in days" :class="getClassCfg(row[day].position)">
+                                            <div class="whitespace-nowrap" v-if="row[day].position">
+                                                <span class="text-xl">{{ row[day].position }}</span>
+                                                <span class="ml-2 text-xs text-gray-400">cl: {{ row[day].clicks }}</span>
+                                            </div>
+                                            <div v-else class="text-center">–</div>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -451,7 +467,7 @@ project }}</a>
 
             getPopularQueries(user_id, host_id, date) {
                 // const url = this.api_url + 'user/' + user_id + '/hosts/' + host_id + '/search-queries/popular'
-                const url = `${this.api_url}user/${user_id}/hosts/${host_id}/search-queries/popular?date_from=${date}&date_to=${date}&order_by=TOTAL_SHOWS&device_type_indicator=ALL&limit=100&query_indicator=AVG_SHOW_POSITION&query_indicator=TOTAL_SHOWS`
+                const url = `${this.api_url}user/${user_id}/hosts/${host_id}/search-queries/popular?date_from=${date}&date_to=${date}&order_by=TOTAL_SHOWS&device_type_indicator=ALL&limit=100&query_indicator=AVG_SHOW_POSITION&query_indicator=TOTAL_CLICKS`
 
                 const options = {
                     headers: {
@@ -516,6 +532,7 @@ project }}</a>
                             "indicators": {
                                 "AVG_SHOW_POSITION": 8.0,
                                 "TOTAL_SHOWS": 100,
+                                "TOTAL_CLICKS": 5,
                             }
                         },
                         {
@@ -524,6 +541,7 @@ project }}</a>
                             "indicators": {
                                 "AVG_SHOW_POSITION": 30.0,
                                 "TOTAL_SHOWS": 100,
+                                "TOTAL_CLICKS": 7,
                             }
                         }
                     ]
