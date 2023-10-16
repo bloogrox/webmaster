@@ -257,6 +257,8 @@ project }}</a>
         const HostComp = {
             data() {
                 return {
+                    sort_column: null,
+                    sort_direction: 'asc',
                     data: [],
                 }
             },
@@ -283,7 +285,7 @@ project }}</a>
                 },
                 report() {
                     const keywords = new Set(this.data.map(x => x.keyword))
-                    const sort_col = this.days[0]
+                    // const sort_col = this.days[0]
 
                     const result = []
 
@@ -297,7 +299,10 @@ project }}</a>
                         result.push(row)
                     })
 
-                    return result.toSorted((a, b) => a[sort_col] - b[sort_col])
+                    return result.toSorted((a, b) => {
+                        const m = this.sort_direction == 'asc' ? 1 : -1
+                        return (a[this.sort_column] - b[this.sort_column]) * m
+                    })
                 },
             },
             methods: {
@@ -305,8 +310,39 @@ project }}</a>
                     const res = this.data.filter(x => x.keyword==keyword && x.date==date)
                     return (res.length > 0) ? res[0].position : undefined
                 },
+                getClassCfg(num) {
+                    const conf = [
+                        {upper_bound: 3, class: "bg-blue-100"},
+                        {upper_bound: 10, class: "bg-blue-100"},
+                        {upper_bound: 20, class: "bg-blue-100"},
+                        {upper_bound: 50, class: "bg-pink-200"},
+                        {upper_bound: 100, class: "bg-blue-100"},
+                        {upper_bound: 500, class: "bg-blue-100"},
+                        {upper_bound: 1000, class: "bg-blue-100"},
+                    ]
+
+                    for (const item of conf) {
+                        if (num <= item.upper_bound) {
+                            return {[item.class]: true}
+                        }
+                    }
+
+                    return {}
+                },
+                sort(day) {
+                    if (this.sort_column == day) {
+                        this.sort_direction = this.sort_direction == 'asc' ? 'desc' : 'asc'
+                    }
+                    else {
+                        this.sort_column = day
+                    }
+                }
             },
             created() {
+                // setup sort column
+                this.sort_column = this.days[0]
+
+                // fetch data from yandex
                 if (this.token.length) {
                     const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
 
@@ -334,17 +370,21 @@ project }}</a>
                 <div>
                     <div class="mt-10">
                         <div class="">
-                            <table class="table">
+                            <table class="table table-zebra">
                                 <thead>
                                     <tr>
                                         <th>Запросы</th>
-                                        <th v-for="day in days" class="w-10">{{ day }}</th>
+                                        <th v-for="day in days" class="w-10" :class="{'bg-gray-100': sort_column == day}">
+                                            <a href="" @click.prevent="sort(day)">
+                                                {{ day }}
+                                            </a>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="row in report">
                                         <td>{{ row.keyword }}</td>
-                                        <td v-for="day in days">{{ row[day] }}</td>
+                                        <td v-for="day in days" :class="getClassCfg(row[day])"><div >{{ row[day] }}</div></td>
                                     </tr>
                                 </tbody>
                             </table>
