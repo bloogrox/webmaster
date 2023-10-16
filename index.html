@@ -294,6 +294,9 @@ project }}</a>
                         }
                         this.days.forEach(date => {
                             row[date] = this.findStats(k, date)
+                            const prev_day = dayjs(date).subtract(1, "day").format("YYYY-MM-DD")
+                            const prev_day_stats = this.findStats(k, prev_day)
+                            row[date].change = prev_day_stats.position ? row[date].position - prev_day_stats.position : 0
                         })
                         result.push(row)
                     })
@@ -307,6 +310,7 @@ project }}</a>
             methods: {
                 findStats(keyword, date) {
                     const res = this.data.filter(x => x.keyword==keyword && x.date==date)
+
                     if (res.length > 0) {
                         return {
                             position: res[0].position,
@@ -314,10 +318,7 @@ project }}</a>
                         }
                     }
 
-                    return {
-                        position: undefined,
-                        clicks: undefined,
-                    }
+                    return {}
                 },
                 getClassCfg(num) {
                     const conf = [
@@ -397,6 +398,7 @@ project }}</a>
                                         <td v-for="day in days" :class="getClassCfg(row[day].position)">
                                             <div class="whitespace-nowrap" v-if="row[day].position">
                                                 <span class="text-xl">{{ row[day].position }}</span>
+                                                <sup v-if="row[day].change != 0" class="ml-1 text-xs" :class="{'text-green-600': row[day].change < 0,'text-red-600': row[day].change > 0}">{{ row[day].change }}</sup>
                                                 <span class="ml-2 text-xs text-gray-400">cl: {{ row[day].clicks }}</span>
                                             </div>
                                             <div v-else class="text-center">–</div>
