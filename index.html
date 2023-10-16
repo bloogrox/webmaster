@@ -334,7 +334,7 @@ project }}</a>
                                     const row = {
                                         keyword: item.query_text,
                                         date: date,
-                                        position: item.indicators.AVG_SHOW_POSITION,
+                                        position: Math.round(item.indicators.AVG_SHOW_POSITION * 10) / 10,
                                         clicks: item.indicators.TOTAL_CLICKS,
                                     }
 
