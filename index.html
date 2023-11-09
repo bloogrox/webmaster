@@ -85,6 +85,39 @@ project }}</a>
             return window.location.hostname.includes('bloogrox.github.io')
         }
 
+        function colorByPosition(pos, prev_pos) {
+
+            const change = prev_pos - pos
+
+            if (!pos) {
+                return '#f6e9c5'
+            }
+            else if (pos >= 1 & pos < 2) {  // TOP 1
+                return '#a3d1ee'
+            }
+            else if (pos >= 2 & pos < 4) {  // TOP 2,3
+                return '#b4d9f1'
+            }
+            else if (pos >= 4 & pos < 6) {  // TOP 4,5
+                return '#99e4b9'
+            }
+            else if (pos >= 6 & pos < 11) {  // TOP 6-10
+                return '#c8f0da'
+            }
+            else if (pos >= 11 & pos < 101 && prev_pos < 11) {  // TOP 10 -> TOP 100
+                return '#fbe1df'
+            }
+            else if (pos >= 11 && pos < 101 && change <= 0) {  // fall inside TOP 100
+                return '#fff'
+            }
+            else if (pos >= 11 && pos < 101 && change > 0) {  // rise inside TOP 100
+                return '#edf9f3'
+            }
+            else {
+                return '#fff'
+            }
+        }
+
         // const formatDateMixin = {
         //     methods: {
         //         formatDate(dateString) {
@@ -263,7 +296,7 @@ project }}</a>
                             const prev_day = dayjs(date).subtract(1, "day").format("YYYY-MM-DD")
                             const prev_day_stats = this.findStats(k, prev_day)
                             row[date].change = prev_day_stats.position ? row[date].position - prev_day_stats.position : 0
-                            row[date].color = '#FFF'
+                            row[date].color = colorByPosition(row[date].position, prev_day_stats.position)
                         })
                         result.push(row)
                     })
