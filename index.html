@@ -383,14 +383,14 @@ project }}</a>
                                             <div class="whitespace-nowrap" v-if="row[day].position">
                                                 <div class="grid grid-cols-2 gap-1">
                                                     <div class="text-center">
-                                                        <span class="text-lg">{{ row[day].position.toFixed() }}</span>
-                                                        <sup v-if="row[day].change != 0"
+                                                        <span class="text-lg">{{ +row[day].position.toFixed(1) }}</span>
+                                                        <sup v-if="Math.abs(row[day].change) >= 1"
                                                             class=""
                                                             :class="{'text-green-600': row[day].change < 0, 'text-red-600': row[day].change > 0}"
                                                             >
                                                             <i v-if="row[day].change < 0">&uarr;</i>
                                                             <i v-if="row[day].change > 0">&darr;</i>
-                                                            {{ Math.abs(row[day].change).toFixed() }}
+                                                            {{ +Math.abs(row[day].change).toFixed(1) }}
                                                         </sup>
                                                     </div>
                                                     <div class="text-xs text-gray-500">
