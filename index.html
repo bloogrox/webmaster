@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com/3.3.1"></script>
     <style>
         * {font-family: sans-serif;}
+        th, td {
+            border: 2px solid lightgray;
+        }
     </style>
     <script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
 </head>
@@ -260,6 +263,7 @@ project }}</a>
                             const prev_day = dayjs(date).subtract(1, "day").format("YYYY-MM-DD")
                             const prev_day_stats = this.findStats(k, prev_day)
                             row[date].change = prev_day_stats.position ? row[date].position - prev_day_stats.position : 0
+                            row[date].color = '#FFF'
                         })
                         result.push(row)
                     })
@@ -278,30 +282,7 @@ project }}</a>
                         return {
                             position: res[0].position,
                             clicks: res[0].clicks,
-                        }
-                    }
-
-                    return {}
-                },
-                getClassCfg(num) {
-                    const conf = [
-                        {upper_bound: 1, class: "bg-blue-300"},
-                        {upper_bound: 2, class: "bg-blue-200"},
-                        {upper_bound: 3, class: "bg-blue-100"},
-                        {upper_bound: 4, class: "bg-green-300"},
-                        {upper_bound: 5, class: "bg-green-200"},
-                        {upper_bound: 6, class: "bg-green-100"},
-                        {upper_bound: 10, class: "bg-pink-100"},
-                        {upper_bound: 20, class: "bg-pink-100"},
-                        {upper_bound: 50, class: "bg-pink-200"},
-                        {upper_bound: 100, class: "bg-yellow-100"},
-                        {upper_bound: 500, class: "bg-yellow-100"},
-                        {upper_bound: 1000, class: "bg-yellow-100"},
-                    ]
-
-                    for (const item of conf) {
-                        if (num <= item.upper_bound) {
-                            return {[item.class]: true}
+                            shows: res[0].shows,
                         }
                     }
 
@@ -334,8 +315,9 @@ project }}</a>
                                     const row = {
                                         keyword: item.query_text,
                                         date: date,
-                                        position: Math.round(item.indicators.AVG_SHOW_POSITION * 10) / 10,
+                                        position: item.indicators.AVG_SHOW_POSITION,
                                         clicks: item.indicators.TOTAL_CLICKS,
+                                        shows: item.indicators.TOTAL_SHOWS,
                                     }
 
                                     this.data.push(row)
@@ -348,26 +330,41 @@ project }}</a>
             template: `
                 <div>
                     <div class="mt-10">
-                        <div class="rounded-xl shadow">
+                        <div>
                             <table class="table table-zebra">
                                 <thead>
                                     <tr>
-                                        <th>Запросы</th>
-                                        <th v-for="day in days" class="w-10" :class="{'bg-gray-100': sort_column == day}">
-                                            <a href="" @click.prevent="sort(day)">
-                                                {{ day }}
-                                            </a>
+                                        <th class="w-96 max-w-sm">Запросы</th>
+                                        <th v-for="day in days" :class="{'bg-gray-100': sort_column == day}">
+                                            <a href="" @click.prevent="sort(day)">{{ day }}</a>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="row in report">
-                                        <td>{{ row.keyword }}</td>
-                                        <td v-for="day in days" :class="getClassCfg(row[day].position)">
+                                        <td class="py-2">{{ row.keyword }}</td>
+                                        <td v-for="day in days"
+                                            class="p-1"
+                                            :style="{'background-color': row[day].color}"
+                                            >
                                             <div class="whitespace-nowrap" v-if="row[day].position">
-                                                <span class="text-xl">{{ row[day].position }}</span>
-                                                <sup v-if="row[day].change != 0" class="ml-1 text-xs" :class="{'text-green-600': row[day].change < 0,'text-red-600': row[day].change > 0}">{{ row[day].change }}</sup>
-                                                <span class="ml-2 text-xs text-gray-400">cl: {{ row[day].clicks }}</span>
+                                                <div class="grid grid-cols-2 gap-1">
+                                                    <div class="text-center">
+                                                        <span class="text-lg">{{ row[day].position.toFixed() }}</span>
+                                                        <sup v-if="row[day].change != 0"
+                                                            class=""
+                                                            :class="{'text-green-600': row[day].change < 0, 'text-red-600': row[day].change > 0}"
+                                                            >
+                                                            <i v-if="row[day].change < 0">&uarr;</i>
+                                                            <i v-if="row[day].change > 0">&darr;</i>
+                                                            {{ Math.abs(row[day].change).toFixed() }}
+                                                        </sup>
+                                                    </div>
+                                                    <div class="text-xs text-gray-500">
+                                                        <div>кл: {{ row[day].clicks }}</div>
+                                                        <div>ctr: <span v-if="row[day].shows > 0">{{ Math.round(100 * row[day].clicks / row[day].shows) }}%</span><span v-else>–</span></div>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div v-else class="text-center">–</div>
                                         </td>
@@ -437,7 +434,7 @@ project }}</a>
 
             getPopularQueries(user_id, host_id, date) {
                 // const url = this.api_url + 'user/' + user_id + '/hosts/' + host_id + '/search-queries/popular'
-                const url = `${this.api_url}user/${user_id}/hosts/${host_id}/search-queries/popular?date_from=${date}&date_to=${date}&order_by=TOTAL_SHOWS&device_type_indicator=ALL&limit=100&query_indicator=AVG_SHOW_POSITION&query_indicator=TOTAL_CLICKS`
+                const url = `${this.api_url}user/${user_id}/hosts/${host_id}/search-queries/popular?date_from=${date}&date_to=${date}&order_by=TOTAL_SHOWS&device_type_indicator=ALL&limit=100&query_indicator=AVG_SHOW_POSITION&query_indicator=TOTAL_CLICKS&query_indicator=TOTAL_SHOWS`
 
                 const options = {
                     headers: {
@@ -502,6 +499,7 @@ project }}</a>
                             "indicators": {
                                 "AVG_SHOW_POSITION": Math.round(Math.random() * 100),
                                 "TOTAL_CLICKS": Math.round(Math.random() * 20),
+                                "TOTAL_SHOWS": Math.round(Math.random() * 200),
                             }
                         },
                         {
@@ -510,6 +508,7 @@ project }}</a>
                             "indicators": {
                                 "AVG_SHOW_POSITION": Math.round(Math.random() * 100),
                                 "TOTAL_CLICKS": Math.round(Math.random() * 20),
+                                "TOTAL_SHOWS": Math.round(Math.random() * 200),
                             }
                         }
                     ]
