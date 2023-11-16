@@ -253,6 +253,14 @@ project }}</a>
             `
         }
 
+        function filter_First_Field(arr, filterFn, field) {
+            const res = arr.filter(filterFn)
+            if (res.length > 0) {
+                return res[0][field]
+            }
+            return null
+        }
+
         const HostComp = {
             data() {
                 return {
@@ -272,18 +280,19 @@ project }}</a>
                     return this.$route.params.host_id
                 },
                 days() {
-                    const days_in_report = 7
-                    const days_offset = 2
+                    if (this.data.length) {
+                        return (
+                            [... new Set(
+                                this.data[0].statistics.map(x => x.date)
+                            )]
+                            .toSorted((a, b) => b.localeCompare(a))
+                        )
+                    }
 
-                    return [...Array(days_in_report).keys()]
-                        .map(x => {
-                            return dayjs()
-                                .subtract(days_offset + x, "day")
-                                .format("YYYY-MM-DD")
-                        })
+                    return []
                 },
                 report() {
-                    const keywords = new Set(this.data.map(x => x.keyword))
+                    const keywords = this.data.map(x => x.text_indicator.value)
 
                     const result = []
 
@@ -301,21 +310,27 @@ project }}</a>
                         result.push(row)
                     })
 
-                    return result.toSorted((a, b) => {
-                        const m = this.sort_direction == 'asc' ? 1 : -1
-                        return (a[this.sort_column].position - b[this.sort_column].position) * m
-                    })
+                    if (this.sort_column) {
+                        return result.toSorted((a, b) => {
+                            const m = this.sort_direction == 'asc' ? 1 : -1
+                            return (a[this.sort_column].position - b[this.sort_column].position) * m
+                        })
+                    }
+
+                    return result
                 },
             },
             methods: {
                 findStats(keyword, date) {
-                    const res = this.data.filter(x => x.keyword==keyword && x.date==date)
+                    const res = this.data.filter(x => x.text_indicator.value==keyword)
 
                     if (res.length > 0) {
                         return {
-                            position: res[0].position,
-                            clicks: res[0].clicks,
-                            shows: res[0].shows,
+                            position: filter_First_Field(res[0]["statistics"].filter(x => x.date==date), x => x["field"] == "POSITION", "value"),
+                            clicks: filter_First_Field(res[0]["statistics"].filter(x => x.date==date), x => x["field"] == "CLICKS", "value"),
+                            ctr: filter_First_Field(res[0]["statistics"].filter(x => x.date==date), x => x["field"] == "CTR", "value"),
+                            impressions: filter_First_Field(res[0]["statistics"].filter(x => x.date==date), x => x["field"] == "IMPRESSIONS", "value"),
+                            demand: filter_First_Field(res[0]["statistics"].filter(x => x.date==date), x => x["field"] == "DEMAND", "value"),
                         }
                     }
 
@@ -331,51 +346,43 @@ project }}</a>
                 }
             },
             created() {
-                // setup sort column
-                this.sort_column = this.days[0]
-
                 // fetch data from yandex
                 if (this.token.length) {
+
                     const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
 
-                    this.days.forEach(date => {
-                        yandex.getPopularQueries(this.user_id, this.host_id, date)
-                            .then(response => response.json())
-                            .then(x => {
-                                console.log(x)
+                    yandex.getQueryAnalytics(this.user_id, this.host_id)
+                        .then(response => response.json())
+                        .then(x => {
+                            console.log(x)
 
-                                x.queries.forEach(item => {
-                                    const row = {
-                                        keyword: item.query_text,
-                                        date: date,
-                                        position: item.indicators.AVG_SHOW_POSITION,
-                                        clicks: item.indicators.TOTAL_CLICKS,
-                                        shows: item.indicators.TOTAL_SHOWS,
-                                    }
-
-                                    this.data.push(row)
-                                })
-                            })
-                            .catch(error => { console.log(error) })
-                    })
+                            this.data = x.text_indicator_to_statistics
+                        })
+                        .catch(error => { console.log(error) })
                 }
             },
             template: `
                 <div>
                     <div class="mt-10">
                         <div>
-                            <table class="table table-zebra">
+                            <div class="flex flex-col h-screen">
+                            <div class="flex-grow overflow-auto">
+                            <table class="table table-zebra relative w-full border">
                                 <thead>
                                     <tr>
-                                        <th class="w-96 max-w-sm">Запросы</th>
-                                        <th v-for="day in days" :class="{'bg-gray-100': sort_column == day}">
+                                        <th class="sticky top-0 bg-white min-w-full w-96 max-w-sm">Запросы</th>
+                                        <th v-for="day in days" class="sticky top-0 bg-white" :class="{'bg-gray-100': sort_column == day, 'text-black': sort_column == day}">
                                             <a href="" @click.prevent="sort(day)">{{ day }}</a>
+                                            <span v-if="sort_column == day">
+                                                <span v-if="sort_direction == 'asc'">&darr;</span>
+                                                <span v-else>&uarr;</span>
+                                            </span>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="row in report">
-                                        <td class="py-2">{{ row.keyword }}</td>
+                                        <td class="sticky left-0 bg-white py-2 min-w-full w-96 max-w-sm">{{ row.keyword }}</td>
                                         <td v-for="day in days"
                                             class="p-1"
                                             :style="{'background-color': row[day].color}"
@@ -388,14 +395,14 @@ project }}</a>
                                                             class=""
                                                             :class="{'text-green-600': row[day].change < 0, 'text-red-600': row[day].change > 0}"
                                                             >
-                                                            <i v-if="row[day].change < 0">&uarr;</i>
-                                                            <i v-if="row[day].change > 0">&darr;</i>
+                                                            <span v-if="row[day].change < 0">&uarr;</span>
+                                                            <span v-if="row[day].change > 0">&darr;</span>
                                                             {{ +Math.abs(row[day].change).toFixed(1) }}
                                                         </sup>
                                                     </div>
                                                     <div class="text-xs text-gray-500">
                                                         <div>кл: {{ row[day].clicks }}</div>
-                                                        <div>ctr: <span v-if="row[day].shows > 0">{{ Math.round(100 * row[day].clicks / row[day].shows) }}%</span><span v-else>–</span></div>
+                                                        <div>пок.: {{ row[day].impressions }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -404,6 +411,8 @@ project }}</a>
                                     </tr>
                                 </tbody>
                             </table>
+                            </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -477,8 +486,42 @@ project }}</a>
                 }
                 return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
             }
+
+            /**
+            * https://yandex.ru/dev/webmaster/doc/dg/reference/host-query-analytics.html
+            */
+            getQueryAnalytics(user_id, host_id) {
+                const url = `${this.api_url}user/${user_id}/hosts/${host_id}/query-analytics/list?device_type_indicator=ALL&limit=100`
+
+                const options = {
+                    headers: {
+                        Authorization: 'OAuth ' + this.token
+                    },
+                    mode: "cors",
+                }
+                return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
+
+            }
         }
 
+
+        function generateRandomString(length) {
+            let result = '';
+            const characters = 'abcdefghijklmnopqrstuvwxyz';
+            const charactersLength = characters.length;
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * charactersLength));
+            }
+            return result;
+        };
+
+        function generateRandomSentence(length) {
+            return (
+                [...Array(length)]
+                .map(_ => generateRandomString(Math.floor(Math.random() * 7 + 3)))
+                .join(' ')
+            )
+        }
 
         class YandexWebmasterStub {
 
@@ -550,6 +593,151 @@ project }}</a>
                 return new Promise((resolve) => { resolve(Response.json(data)) })
             }
 
+            getQueryAnalytics(user_id, host_id) {
+                const data = {
+                    count: 2,
+                    text_indicator_to_statistics: [
+                        {
+                            "text_indicator": {
+                                "type": "QUERY",
+                                "value": "чем берется булочка руками или салфеткой"
+                            },
+                            "statistics": [
+                                {
+                                    "date": "2023-10-31",
+                                    "field": "POSITION",
+                                    "value": 50
+                                },
+                                {
+                                    "date": "2023-10-31",
+                                    "field": "CLICKS",
+                                    "value": 0.0
+                                },
+                                {
+                                    "date": "2023-10-31",
+                                    "field": "IMPRESSIONS",
+                                    "value": 0.0
+                                },
+                                {
+                                    "date": "2023-11-01",
+                                    "field": "CLICKS",
+                                    "value": 0.0
+                                },
+                                {
+                                    "date": "2023-11-01",
+                                    "field": "IMPRESSIONS",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-01",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-02",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-03",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-04",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-05",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-06",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-07",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-08",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-09",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-10",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                                {
+                                    "date": "2023-11-11",
+                                    "field": "POSITION",
+                                    "value": Math.round(Math.random() * 100)
+                                },
+                            ]
+                        },
+                        {
+                            "text_indicator": {
+                                "value": "аутлет серравалле адрес"
+                            },
+                            "statistics": []
+                        },
+                        {
+                            "text_indicator": {
+                                "value": generateRandomSentence(5)
+                            },
+                            "statistics": []
+                        },
+                        {
+                            "text_indicator": {
+                                "value": generateRandomSentence(5)
+                            },
+                            "statistics": []
+                        },
+                        {
+                            "text_indicator": {
+                                "value": generateRandomSentence(5)
+                            },
+                            "statistics": []
+                        },
+                        {
+                            "text_indicator": {
+                                "value": generateRandomSentence(5)
+                            },
+                            "statistics": []
+                        },
+                        {
+                            "text_indicator": {
+                                "value": generateRandomSentence(5)
+                            },
+                            "statistics": []
+                        },
+                        {
+                            "text_indicator": {
+                                "value": generateRandomSentence(5)
+                            },
+                            "statistics": []
+                        },
+                        {
+                            "text_indicator": {
+                                "value": generateRandomSentence(5)
+                            },
+                            "statistics": []
+                        },
+                    ]
+                }
+
+                return new Promise((resolve) => { resolve(Response.json(data)) })
+            }
         }
 
         /***************************************************
@@ -594,8 +782,11 @@ project }}</a>
                 console.log("is prod", is_prod())
                 // const hosts = api.getHosts()
                 // console.log(hosts)
-                // const report = api.getPopularQueries()
-                // console.log(hosts)
+                // const api = new YandexWebmasterStub()
+                // api.getQueryAnalytics()
+                //     .then(data => data.json())
+                //     .then(console.log)
+
 
                 if (is_prod() && !this.has_token) {
                     window.YaAuthSuggest.init(
