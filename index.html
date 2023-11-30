@@ -539,7 +539,7 @@ project }}</a>
                     limit: 100
                 }
 
-                const errors = validateQueryAnalyticsParams(params)
+                const errors = this.validateQueryAnalyticsParams(params)
                 if (errors.length) {
                     throw new Error(errors[0]);
                 }
