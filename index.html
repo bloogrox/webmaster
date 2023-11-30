@@ -877,6 +877,8 @@ project }}</a>
                     .then(data => {
                         // console.log('Сообщение с токеном', data)
                         this.token = data.access_token
+
+                        router.go()
                     })
                     .catch(error => console.log('Обработка ошибки', error))
                 }
