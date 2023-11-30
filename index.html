@@ -358,7 +358,7 @@ project }}</a>
 
                         let params = {}
                         if (this.selected_region) {
-                            params.region_ids = this.selected_region
+                            params.region_ids = [this.selected_region]
                         }
 
                         this.loading = true
