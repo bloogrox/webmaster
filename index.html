@@ -267,6 +267,9 @@ project }}</a>
                     sort_column: null,
                     sort_direction: 'asc',
                     data: [],
+                    regions: [],
+                    selected_region: "",
+                    loading: false,
                 }
             },
             computed: {
@@ -343,28 +346,61 @@ project }}</a>
                     else {
                         this.sort_column = day
                     }
+                },
+                change_region() {
+                    this.reload_stats()
+                },
+                reload_stats() {
+                    // fetch data from yandex
+                    if (this.token.length) {
+
+                        const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
+
+                        let params = {}
+                        if (this.selected_region) {
+                            params.region_ids = this.selected_region
+                        }
+
+                        this.loading = true
+
+                        yandex.getQueryAnalytics(this.user_id, this.host_id, params)
+                            .then(response => response.json())
+                            .then(x => {
+                                console.log(x)
+
+                                this.data = x.text_indicator_to_statistics
+                            })
+                            .catch(error => { console.log(error) })
+                            .finally(() => { this.loading = false })
+                    }
                 }
             },
             created() {
-                // fetch data from yandex
-                if (this.token.length) {
 
-                    const yandex = is_prod() ? new YandexWebmaster(this.token) : new YandexWebmasterStub()
+                this.reload_stats()
 
-                    yandex.getQueryAnalytics(this.user_id, this.host_id)
-                        .then(response => response.json())
-                        .then(x => {
-                            console.log(x)
-
-                            this.data = x.text_indicator_to_statistics
-                        })
-                        .catch(error => { console.log(error) })
-                }
+                fetch("https://bloogrox.github.io/webmaster/regions.json")
+                    .then(response => response.json())
+                    .then(x => {
+                        this.regions = (
+                            Object.entries(x)
+                            .map(([k, v]) => {return {id: k, name: v}})
+                        )
+                    })
             },
             template: `
                 <div>
                     <div class="mt-10">
                         <div>
+                            <span>
+                                <select v-model="selected_region" @change="change_region" class="select select-bordered">
+                                    <option value="">Регион</option>
+                                    <option v-for="region in regions" :value="region.id">{{ region.name }}</option>
+                                </select>
+                            </span>
+                            <span v-if="loading" class="ml-3 loading loading-bars loading-md"></span>
+                        </div>
+                        <div class="mt-5">
                             <div class="flex flex-col h-screen">
                             <div class="flex-grow overflow-auto">
                             <table class="table table-zebra relative w-full border">
@@ -487,16 +523,28 @@ project }}</a>
                 return fetch(this.backend_url + '?url=' + encodeURIComponent(url), options)
             }
 
+
+            validateQueryAnalyticsParams(params) {
+                return []
+            }
+
             /**
             * https://yandex.ru/dev/webmaster/doc/dg/reference/host-query-analytics.html
             */
-            getQueryAnalytics(user_id, host_id) {
+            getQueryAnalytics(user_id, host_id, params) {
                 const url = `${this.api_url}user/${user_id}/hosts/${host_id}/query-analytics/list`
 
-                const data = {
+                const defaultParams = {
                     device_type_indicator: "ALL",
                     limit: 100
                 }
+
+                const errors = validateQueryAnalyticsParams(params)
+                if (errors.length) {
+                    throw new Error(errors[0]);
+                }
+
+                const data = Object.assign({}, defaultParams, params)
 
                 const options = {
                     method: "POST",
@@ -531,6 +579,11 @@ project }}</a>
             )
         }
 
+        /*******************************
+         *
+         * Webmaster Stub
+         *
+         */
         class YandexWebmasterStub {
 
             getUserId() {
@@ -601,7 +654,20 @@ project }}</a>
                 return new Promise((resolve) => { resolve(Response.json(data)) })
             }
 
-            getQueryAnalytics(user_id, host_id) {
+            validateQueryAnalyticsParams(params) {
+                return [
+                    // 'param1 error, should be ...',
+                    // 'param-2 error',
+                ]
+            }
+
+            getQueryAnalytics(user_id, host_id, params) {
+
+                const errors = this.validateQueryAnalyticsParams(params)
+                if (errors.length) {
+                    throw new Error(errors[0]);
+                }
+
                 const data = {
                     count: 2,
                     text_indicator_to_statistics: [
@@ -744,7 +810,12 @@ project }}</a>
                     ]
                 }
 
-                return new Promise((resolve) => { resolve(Response.json(data)) })
+                return new Promise((resolve) => {
+                    setTimeout(
+                        () => { resolve(Response.json(data)) },
+                        1000
+                    )
+                })
             }
         }
 
